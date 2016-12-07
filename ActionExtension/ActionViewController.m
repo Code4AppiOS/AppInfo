@@ -23,6 +23,11 @@
     
     void(^downloadCompletionHandler)(NSData *, NSURLResponse *, NSError *) = ^(NSData *data, NSURLResponse *response, NSError *error) {
         
+        if (error) {
+            NSLog(@"error: %@", error.localizedDescription);
+            return;
+        }
+        
         NSString *storeUrl = response.URL.absoluteString;
         NSRange searchedRange = NSMakeRange(0, [storeUrl length]);
         NSString *pattern = @"[0-9]{5,}";
@@ -33,7 +38,7 @@
         
         for (NSTextCheckingResult *match in matches) {
             NSString *identifier = [storeUrl substringWithRange:[match range]];
-            dispatch_sync(dispatch_get_main_queue(), ^{
+            dispatch_async(dispatch_get_main_queue(), ^{
                 // appannie: https://www.appannie.com/apps/ios/app/identifier/details/
                 // aso100: https://aso100.com/app/baseinfo/appid/identifier
                 NSURL *url = [NSURL URLWithString:[@"https://aso100.com/app/baseinfo/appid/" stringByAppendingString:identifier]];
@@ -51,17 +56,16 @@
     
     void(^loadCompletionHandler)(NSURL *, NSError *) = ^(NSURL *original, NSError *error) {
         
-        if (!original) {
+        if (error) {
+            NSLog(@"error: %@", error.localizedDescription);
             return;
         }
         
-        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-            NSString *path = [[original.absoluteString stringByReplacingOccurrencesOfString:@"https://appsto.re"
-                                                                                 withString:@""] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]];
-            NSURL *url = [NSURL URLWithString:[@"https://itunes.apple.com/WebObjects/MZStore.woa/wa/redirectToContent?path=" stringByAppendingString:path]];
-            [[[NSURLSession sharedSession] dataTaskWithRequest:[NSURLRequest requestWithURL:url]
-                                             completionHandler:downloadCompletionHandler] resume];
-        }];
+        NSString *path = [[original.absoluteString stringByReplacingOccurrencesOfString:@"https://appsto.re"
+                                                                             withString:@""] stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLHostAllowedCharacterSet]];
+        NSURL *url = [NSURL URLWithString:[@"https://itunes.apple.com/WebObjects/MZStore.woa/wa/redirectToContent?path=" stringByAppendingString:path]];
+        [[[NSURLSession sharedSession] dataTaskWithRequest:[NSURLRequest requestWithURL:url]
+                                         completionHandler:downloadCompletionHandler] resume];
     };
     
     NSString *identifier = (NSString *)kUTTypeURL;
